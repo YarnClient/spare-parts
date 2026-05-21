@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家用备件库存统计</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container { max-width: 900px; margin: 0 auto; }
+
+h1 {
+  text-align: center;
+  color: #1a1a2e;
+  margin-bottom: 24px;
+  font-size: 24px;
+}
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Add / Restock form */
+.form-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: #666;
+}
+
+.form-group input, .form-group select {
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: #4a6cf7;
+}
+
+.btn {
+  height: 36px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.btn-primary { background: #4a6cf7; color: #fff; }
+.btn-primary:hover { background: #3b5de7; }
+
+.btn-success { background: #22c55e; color: #fff; }
+.btn-success:hover { background: #16a34a; }
+
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* Inventory table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+th {
+  color: #888;
+  font-weight: 500;
+  font-size: 13px;
+  background: #fafafa;
+}
+
+.low-stock { color: #ef4444; font-weight: 600; }
+.normal-stock { color: #22c55e; font-weight: 600; }
+
+.empty-state {
+  text-align: center;
+  color: #aaa;
+  padding: 32px 0;
+  font-size: 14px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 20px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all .2s;
+}
+
+.tab:first-child { border-radius: 6px 0 0 6px; }
+.tab:last-child { border-radius: 0 6px 6px 0; }
+.tab.active { background: #4a6cf7; color: #fff; border-color: #4a6cf7; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* History table */
+.history-table td { font-size: 13px; }
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-out { background: #fef2f2; color: #dc2626; }
+.tag-in { background: #f0fdf4; color: #16a34a; }
+
+.actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Quick consume modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 360px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.modal h3 { margin-bottom: 16px; }
+
+.modal .form-row { margin-top: 16px; justify-content: flex-end; }
+
+.hidden { display: none !important; }
+
+.summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.summary-item {
+  flex: 1;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.summary-item .label { font-size: 12px; color: #888; }
+.summary-item .value { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🏠 家用备件库存统计</h1>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-item">
+      <div class="label">备件种类</div>
+      <div class="value" id="summaryTypes">0</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">库存总量</div>
+      <div class="value" id="summaryTotal">0</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">低库存预警</div>
+      <div class="value" style="color:#ef4444" id="summaryLow">0</div>
+    </div>
+  </div>
+
+  <!-- Add / Restock -->
+  <div class="card">
+    <h2>➕ 添加新备件 / 入库补充</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>备件名称</label>
+        <input type="text" id="addName" placeholder="例如：5号电池" list="nameSuggestions" style="width:180px">
+        <datalist id="nameSuggestions"></datalist>
+      </div>
+      <div class="form-group">
+        <label>数量</label>
+        <input type="number" id="addQty" placeholder="数量" min="1" value="1" style="width:100px">
+      </div>
+      <button class="btn btn-success" onclick="addOrRestock()">入库</button>
+    </div>
+    <div style="margin-top:6px;font-size:12px;color:#999">
+      新名称=新建备件，已有名称=补充库存
+    </div>
+  </div>
+
+  <!-- Quick Consume -->
+  <div class="card">
+    <h2>📝 快速消耗记录</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>备件名称</label>
+        <select id="consumeName" style="width:200px"><option value="">-- 请选择 --</option></select>
+      </div>
+      <div class="form-group">
+        <label>消耗数量</label>
+        <input type="number" id="consumeQty" min="1" value="1" style="width:100px">
+      </div>
+      <div class="form-group">
+        <label>日期</label>
+        <input type="date" id="consumeDate" style="width:140px">
+      </div>
+      <button class="btn btn-danger" onclick="consume()">记录消耗</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('inventory')">📦 当前库存</div>
+    <div class="tab" onclick="switchTab('history')">📋 消耗/入库记录</div>
+  </div>
+
+  <!-- Inventory Tab -->
+  <div class="card tab-content active" id="tab-inventory">
+    <table>
+      <thead>
+        <tr>
+          <th>备件名称</th>
+          <th>当前库存</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="inventoryBody">
+        <tr><td colspan="4" class="empty-state">暂无备件，请先添加</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- History Tab -->
+  <div class="card tab-content" id="tab-history">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>备件名称</th>
+          <th>类型</th>
+          <th>数量</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="5" class="empty-state">暂无记录</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'spare_parts_data';
+
+let data = { inventory: {}, history: [] };
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) data = JSON.parse(raw);
+  } catch(e) { /* ignore corrupt data */ }
+}
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function addOrRestock() {
+  const name = document.getElementById('addName').value.trim();
+  const qty = parseInt(document.getElementById('addQty').value, 10);
+  if (!name) return alert('请输入备件名称');
+  if (!qty || qty <= 0) return alert('请输入有效数量');
+
+  const oldQty = data.inventory[name] || 0;
+  data.inventory[name] = oldQty + qty;
+
+  const today = new Date().toISOString().slice(0, 10);
+  data.history.unshift({ date: today, name, type: 'in', qty, id: Date.now() });
+
+  saveData();
+  document.getElementById('addName').value = '';
+  document.getElementById('addQty').value = '1';
+  renderAll();
+}
+
+function consume() {
+  const name = document.getElementById('consumeName').value;
+  const qty = parseInt(document.getElementById('consumeQty').value, 10);
+  const date = document.getElementById('consumeDate').value;
+  if (!name) return alert('请选择备件');
+  if (!qty || qty <= 0) return alert('请输入有效数量');
+  if (!date) return alert('请选择日期');
+
+  const current = data.inventory[name] || 0;
+  if (qty > current && !confirm(`${name} 当前库存仅 ${current}，消耗 ${qty} 后将变为负数，确定继续？`)) return;
+
+  data.inventory[name] = current - qty;
+  data.history.unshift({ date, name, type: 'out', qty, id: Date.now() });
+
+  saveData();
+  document.getElementById('consumeQty').value = '1';
+  renderAll();
+}
+
+function deleteHistory(id) {
+  if (!confirm('确定删除此记录？库存数量不会自动回退，请手动调整。')) return;
+  data.history = data.history.filter(h => h.id !== id);
+  saveData();
+  renderAll();
+}
+
+function deletePart(name) {
+  if (!confirm(`确定删除备件「${name}」？此操作不可恢复。`)) return;
+  delete data.inventory[name];
+  data.history = data.history.filter(h => h.name !== name);
+  saveData();
+  renderAll();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'inventory' && i === 0) || (tab === 'history' && i === 1));
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function renderAll() {
+  renderInventory();
+  renderHistory();
+  renderSummary();
+  renderSelects();
+}
+
+function renderSummary() {
+  const parts = Object.entries(data.inventory);
+  document.getElementById('summaryTypes').textContent = parts.length;
+  document.getElementById('summaryTotal').textContent = parts.reduce((s, [,v]) => s + v, 0);
+  document.getElementById('summaryLow').textContent = parts.filter(([,v]) => v <= 2).length;
+}
+
+function renderInventory() {
+  const tbody = document.getElementById('inventoryBody');
+  const parts = Object.entries(data.inventory).sort((a, b) => a[0].localeCompare(b[0], 'zh'));
+
+  if (!parts.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无备件，请先添加</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = parts.map(([name, qty]) => `
+    <tr>
+      <td><strong>${esc(name)}</strong></td>
+      <td>${qty}</td>
+      <td><span class="${qty <= 2 ? 'low-stock' : 'normal-stock'}">${qty <= 2 ? '⚠ 低库存' : '✓ 充足'}</span></td>
+      <td class="actions-cell">
+        <button class="btn btn-danger btn-sm" onclick="quickConsume('${esc(name)}')">消耗1个</button>
+        <button class="btn btn-sm" style="background:#f59e0b;color:#fff" onclick="quickRestock('${esc(name)}')">补充1个</button>
+        <button class="btn btn-sm" style="background:#6b7280;color:#fff" onclick="deletePart('${esc(name)}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  if (!data.history.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无记录</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.history.map(h => `
+    <tr>
+      <td>${h.date}</td>
+      <td>${esc(h.name)}</td>
+      <td><span class="tag ${h.type === 'in' ? 'tag-in' : 'tag-out'}">${h.type === 'in' ? '入库' : '消耗'}</span></td>
+      <td>${h.type === 'in' ? '+' : '-'}${h.qty}</td>
+      <td><button class="btn btn-sm" style="background:#6b7280;color:#fff" onclick="deleteHistory(${h.id})">删除</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderSelects() {
+  const parts = Object.entries(data.inventory).sort((a, b) => a[0].localeCompare(b[0], 'zh'));
+  const opts = parts.map(([n]) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  document.getElementById('consumeName').innerHTML = '<option value="">-- 请选择 --</option>' + opts;
+
+  const datalist = document.getElementById('nameSuggestions');
+  datalist.innerHTML = parts.map(([n]) => `<option value="${esc(n)}">`).join('');
+}
+
+function quickConsume(name) {
+  data.inventory[name] = Math.max(0, (data.inventory[name] || 1) - 1);
+  const today = new Date().toISOString().slice(0, 10);
+  data.history.unshift({ date: today, name, type: 'out', qty: 1, id: Date.now() });
+  saveData();
+  renderAll();
+}
+
+function quickRestock(name) {
+  data.inventory[name] = (data.inventory[name] || 0) + 1;
+  const today = new Date().toISOString().slice(0, 10);
+  data.history.unshift({ date: today, name, type: 'in', qty: 1, id: Date.now() });
+  saveData();
+  renderAll();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+document.getElementById('consumeDate').value = new Date().toISOString().slice(0, 10);
+loadData();
+renderAll();
+</script>
+</body>
+</html>

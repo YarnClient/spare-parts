@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - 家用备件库存统计</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+h1 {
+  text-align: center;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: #f0f2f5;
+  cursor: pointer;
+  font-size: 15px;
+  color: #666;
+  transition: all .2s;
+  text-align: center;
+}
+
+.tab:first-child { border-radius: 6px 0 0 6px; }
+.tab:last-child { border-radius: 0 6px 6px 0; }
+.tab.active { background: #4a6cf7; color: #fff; }
+
+/* Form */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.form-group input:focus { border-color: #4a6cf7; }
+
+.form-group .hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.btn {
+  width: 100%;
+  height: 42px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all .2s;
+}
+
+.btn-primary { background: #4a6cf7; color: #fff; }
+.btn-primary:hover { background: #3b5de7; }
+
+.btn-wechat {
+  background: #07c160;
+  color: #fff;
+  margin-top: 12px;
+}
+.btn-wechat:hover { background: #06ad56; }
+.btn-wechat:disabled { background: #ccc; cursor: not-allowed; }
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+  color: #ccc;
+  font-size: 13px;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #eee;
+}
+.divider span { margin: 0 12px; }
+
+.error-msg {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 4px;
+  display: none;
+}
+.error-msg.show { display: block; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="login-container">
+  <h1>🏠 家用备件库存统计</h1>
+  <p class="subtitle">登录以管理你的备件库存</p>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">登录</button>
+      <button class="tab" onclick="switchTab('register')">注册</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="tab-panel active" id="panel-login">
+      <div class="form-group">
+        <label>昵称</label>
+        <input type="text" id="loginNickname" placeholder="请输入昵称">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPassword" placeholder="请输入密码">
+      </div>
+      <div class="error-msg" id="loginError"></div>
+      <button class="btn btn-primary" onclick="doLogin()">登 录</button>
+    </div>
+
+    <!-- Register Form -->
+    <div class="tab-panel" id="panel-register">
+      <div class="form-group">
+        <label>昵称</label>
+        <input type="text" id="regNickname" placeholder="2-20个字符">
+        <div class="hint">登录和显示时使用的名称，注册后不可修改</div>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="regPassword" placeholder="至少6位">
+      </div>
+      <div class="form-group">
+        <label>确认密码</label>
+        <input type="password" id="regPassword2" placeholder="再次输入密码">
+      </div>
+      <div class="error-msg" id="regError"></div>
+      <button class="btn btn-primary" onclick="doRegister()">注 册</button>
+    </div>
+
+    <!-- WeChat Login (reserved) -->
+    <div class="divider"><span>或</span></div>
+    <button class="btn btn-wechat" disabled title="微信登录暂未开放">微信登录（即将上线）</button>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let activeTab = 'login';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+  });
+  document.getElementById('panel-login').classList.toggle('active', tab === 'login');
+  document.getElementById('panel-register').classList.toggle('active', tab === 'register');
+  hideErrors();
+}
+
+function hideErrors() {
+  document.getElementById('loginError').classList.remove('show');
+  document.getElementById('regError').classList.remove('show');
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+async function doLogin() {
+  hideErrors();
+  const nickname = document.getElementById('loginNickname').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!nickname) return showError('loginError', '请输入昵称');
+  if (!password) return showError('loginError', '请输入密码');
+
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nickname, password})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '登录失败');
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    window.location.href = '/';
+  } catch(e) {
+    showError('loginError', e.message);
+  }
+}
+
+async function doRegister() {
+  hideErrors();
+  const nickname = document.getElementById('regNickname').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const password2 = document.getElementById('regPassword2').value;
+
+  if (!nickname) return showError('regError', '请输入昵称');
+  if (nickname.length < 2 || nickname.length > 20) return showError('regError', '昵称长度2-20个字符');
+  if (!password || password.length < 6) return showError('regError', '密码至少6位');
+  if (password !== password2) return showError('regError', '两次密码不一致');
+
+  try {
+    const res = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nickname, password})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '注册失败');
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    window.location.href = '/';
+  } catch(e) {
+    showError('regError', e.message);
+  }
+}
+
+// Enter key to submit
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if (activeTab === 'login') doLogin();
+    else doRegister();
+  }
+});
+</script>
+
+</body>
+</html>

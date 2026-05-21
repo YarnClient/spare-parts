@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    network_mode: host
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/spare_parts?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: spare
+      SPRING_DATASOURCE_PASSWORD: spare123
+    restart: unless-stopped
